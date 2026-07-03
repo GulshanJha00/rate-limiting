@@ -1,8 +1,9 @@
 const express = require("express");
 const User = require("../model/user.model");
 const signUpUser = require("../auth/sign-up");
-const router = express.Router();
+const Producer = require("../controllers/Producer");
 
+const router = express.Router();
 router.get("/", (req, res) => {
   res.send("Hello");
 });
@@ -27,30 +28,34 @@ router.post("/check", async (req, res) => {
         .json({ message: "Problem with creating the user" });
     }
   }
+  const currTime = Date.now();
 
-  const token = Producer()
+  const updateToken = await Producer(user);
+  const token = user.remainingToken
+  let addedToken = token + updateToken
 
-  if (user.remainingToken > 0 ) {
-    let token = user.remainingToken;
-    token = token - 1;
+  if (addedToken >= user.tokenLimit) {
+    addedToken = user.tokenLimit
+  }
+
+  if (addedToken > 0) {
+    addedToken--;
+  } else {
+      return res.status(404).json({message:"DENIED ACCESS. Please try after 5 seconds"})
+  }
+
     const users = await User.findOneAndUpdate(
       { clientKey },
-      { remainingToken: token },
+      { remainingToken: addedToken, lastRefill: currTime },
     );
     return res.json({
       message: "Allow",
       name,
       clientKey,
-      RequestToken: user.remainingToken,
       LimitToken: user.tokenLimit,
+      RequestToken: addedToken,
+      lastRefill: user.lastRefill,
     });
-  } else {
-    return res.json(
-      { message: "Access Denied, Please try again after some time" },
-      { status: 404 },
-    );
-  }
 
-  res.send({ name, clientKey });
 });
 module.exports = router;
