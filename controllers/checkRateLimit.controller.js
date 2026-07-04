@@ -1,7 +1,7 @@
 const User = require("../model/user.model");
 const signUpUser = require("../auth/sign-up");
 const Producer = require("../algorithm/Producer");
-
+const xSecond = require("../algorithm/xSecond")
 const checkRateLimit = async (req, res) => {
   const { name, clientKey } = req.body;
 
@@ -36,7 +36,9 @@ const checkRateLimit = async (req, res) => {
   if (addedToken > 0) {
     addedToken--;
   } else {
-      return res.status(429).json({message:"DENIED ACCESS. Please try after 5 seconds"})
+      let xSec = await xSecond(user)
+      let msg = `DENIED ACCESS. Please try after ${xSec} seconds`
+      return res.status(429).json({message:msg})
   }
 
     await User.findOneAndUpdate(
