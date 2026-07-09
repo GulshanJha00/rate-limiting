@@ -3,7 +3,7 @@ const mongoose = require("mongoose")
 const User = new mongoose.Schema({
     name : String,
     clientKey : String,
-    tokenLimit : Number,
+    capacity : Number,
     remainingToken : Number,
     lastRefill:{
         type: Date,
@@ -11,6 +11,4 @@ const User = new mongoose.Schema({
     }
 })
 
-
-
-module.exports = mongoose.model('User',User);
+module.exports = mongoose.model('user',User);

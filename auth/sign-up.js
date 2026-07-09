@@ -1,15 +1,15 @@
-const User = require("../model/user.model")
+const User = require("../model/client.model")
 
 const signUpUser = async (name,clientKey) => {
 
     const now = Date.now();
-    const tokenLimit = 10
+    const capacity = 10
 
     const user = await User.create({
         name,
         clientKey,
-        tokenLimit : tokenLimit,
-        remainingToken : tokenLimit,
+        capacity : capacity,
+        remainingToken : capacity,
         lastRefill: now
     })
     return user;
