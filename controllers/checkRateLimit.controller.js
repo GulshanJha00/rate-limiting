@@ -17,6 +17,7 @@ const checkRateLimit = async (req, res) => {
         clientKey: newUser.clientKey,
         capacity: newUser.capacity,
         remainingToken: newUser.remainingToken,
+        refillRate: newUser.refillRate,
         lastRefill: newUser.lastRefill,
       });
     } catch (error) {
@@ -28,18 +29,18 @@ const checkRateLimit = async (req, res) => {
 
   const currTime = Date.now();
   const updateToken = await Producer(user);
-    const refillTime = Number(process.env.RESET_TIME);
+  const refillRate = user.refillRate;
 
-    let newLastRefill = user.lastRefill;
+  let newLastRefill = user.lastRefill;
 
-    if (updateToken > 0) {
-      newLastRefill = user.lastRefill + updateToken * refillTime;
-    }
+  if (updateToken > 0) {
+    newLastRefill = user.lastRefill + updateToken * refillRate;
+  }
   const token = user.remainingToken;
 
   let addedToken = Math.min(token + updateToken, user.capacity);
 
-  let xSec = await xSecond(newLastRefill);
+  let xSec = await xSecond(newLastRefill, user);
 
   if (addedToken > 0) {
     addedToken--;
@@ -49,7 +50,10 @@ const checkRateLimit = async (req, res) => {
     res.set("X-RateLimit-Limit", user.capacity);
     res.set("X-RateLimit-Remaining", 0);
     res.set("X-RateLimit-Reset", xSec);
-    return res.status(429).json({ message: msg });
+    return res.status(429).json({ 
+      "allowed":false,
+      "retryAfter": xSec
+     });
   }
 
   await User.findOneAndUpdate(
@@ -60,7 +64,8 @@ const checkRateLimit = async (req, res) => {
   res.set("X-RateLimit-Remaining", addedToken);
   res.set("X-RateLimit-Reset", xSec);
   return res.json({
-    decision: "Allow",
+    "allowed": true,
+    "remainingTokens":addedToken
   });
 };
 

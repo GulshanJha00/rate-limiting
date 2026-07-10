@@ -1,7 +1,5 @@
-require("dotenv").config()
-
 const Producer = async (user) => {
-    const refillTime = Number(process.env.RESET_TIME); 
+    const refillTime = user.refillRate; 
     const currTime = Date.now();
     const elapsed = currTime - user.lastRefill;
     const token = Math.floor(elapsed/refillTime)

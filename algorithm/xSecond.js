@@ -1,6 +1,5 @@
-require("dotenv").config()
-const xSecond = async (lastRefill) =>{
-    const refillTime = Number(process.env.RESET_TIME); 
+const xSecond = async (lastRefill, user) =>{
+    const refillTime = user.refillRate; 
     const currTime = Date.now();
 
     const elapsed = currTime - lastRefill;

@@ -5,6 +5,7 @@ const User = new mongoose.Schema({
     clientKey : String,
     capacity : Number,
     remainingToken : Number,
+    refillRate: Number,
     lastRefill:{
         type: Date,
         default: Date.now,
