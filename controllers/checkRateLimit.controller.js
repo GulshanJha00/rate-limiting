@@ -8,23 +8,9 @@ const checkRateLimit = async (req, res) => {
 
   const user = await User.findOne({ clientKey });
   if (!user) {
-    try {
-      const newUser = await signUpUser(name, clientKey);
-
-      return res.status(200).json({
-        message: "User created",
-        name: newUser.name,
-        clientKey: newUser.clientKey,
-        capacity: newUser.capacity,
-        remainingToken: newUser.remainingToken,
-        refillRate: newUser.refillRate,
-        lastRefill: newUser.lastRefill,
-      });
-    } catch (error) {
-      return res
-        .status(403)
-        .json({ message: "Problem with creating the user" });
-    }
+    return res.status(401).json({
+      message:"Unauthorized"
+    })
   }
 
   const currTime = Date.now();
@@ -45,7 +31,6 @@ const checkRateLimit = async (req, res) => {
   if (addedToken > 0) {
     addedToken--;
   } else {
-    let msg = `DENIED ACCESS. Please try after ${xSec} seconds`;
 
     res.set("X-RateLimit-Limit", user.capacity);
     res.set("X-RateLimit-Remaining", 0);

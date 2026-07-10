@@ -1,5 +1,5 @@
 const express = require("express");
-
+const createClient = require("../controllers/createClient.controller")
 const checkRateLimit = require("../controllers/checkRateLimit.controller")
 const adminRoute = require("../controllers/adminRoute.controller")
 const updateDetail = require("../controllers/updateDetail.controller")
@@ -12,4 +12,5 @@ router.get("/",(req,res)=>{
 router.post("/check", checkRateLimit)
 router.get("/admin/:clientKey",adminRoute)
 router.patch("/admin/:clientKey",updateDetail)
+router.post("/admin/client",createClient)
 module.exports = router;

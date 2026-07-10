@@ -1,6 +1,6 @@
 const User = require("../model/client.model");
 
-const allowedFields = ["capacity", "remainingToken"];
+const allowedFields = ["capacity", "remainingToken", "refillRate","algorithm"];
 
 const updateDetail = async (req, res) => {
   const { clientKey } = req.params;
@@ -22,6 +22,21 @@ const updateDetail = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Invalid remaining token",
+    });
+  }
+
+    if (updates.refillRate !== undefined && updates.refillRate < 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid refill rate",
+    });
+    
+  }
+
+  if (updates.algorithm !== undefined && updates.algorithm !== "token_bucket" && updates.algorithm !== "sliding_window") {
+    return res.status(400).json({
+      success: false,
+      message: "Bad Request",
     });
   }
 

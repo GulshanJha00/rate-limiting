@@ -6,6 +6,10 @@ const User = new mongoose.Schema({
     capacity : Number,
     remainingToken : Number,
     refillRate: Number,
+    algorithm:{
+        type: String,
+        default: "token_bucket"
+    },
     lastRefill:{
         type: Date,
         default: Date.now,
