@@ -1,5 +1,5 @@
-const xSecond = async (lastRefill, user) =>{
-    const refillTime = user.refillRate; 
+const xSecond = (lastRefill, user) =>{
+    const refillTime = Number(user.refillRate); 
     const currTime = Date.now();
 
     const elapsed = currTime - lastRefill;

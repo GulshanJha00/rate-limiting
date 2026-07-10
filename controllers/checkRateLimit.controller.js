@@ -2,7 +2,7 @@ const User = require("../model/client.model");
 const signUpUser = require("../auth/sign-up");
 const Producer = require("../algorithm/Producer");
 const xSecond = require("../algorithm/xSecond");
-require("dotenv").config();
+
 const checkRateLimit = async (req, res) => {
   const { name, clientKey } = req.body;
 
@@ -19,9 +19,11 @@ const checkRateLimit = async (req, res) => {
 
   let newLastRefill = user.lastRefill;
 
-  if (updateToken > 0) {
-    newLastRefill = user.lastRefill + updateToken * refillRate;
-  }
+if (updateToken > 0) {
+    newLastRefill = new Date(
+        user.lastRefill.getTime() + updateToken * user.refillRate
+    );
+}
   const token = user.remainingToken;
 
   let addedToken = Math.min(token + updateToken, user.capacity);

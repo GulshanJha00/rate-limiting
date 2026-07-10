@@ -1,6 +1,6 @@
 const User = require("../model/client.model");
 
-const allowedFields = ["capacity", "remainingToken", "refillRate","algorithm"];
+const allowedFields = ["capacity", "refillRate","algorithm"];
 
 const updateDetail = async (req, res) => {
   const { clientKey } = req.params;
@@ -15,13 +15,6 @@ const updateDetail = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Invalid token limit",
-    });
-  }
-
-  if (updates.remainingToken !== undefined && updates.remainingToken < 0) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid remaining token",
     });
   }
 
