@@ -1,59 +1,83 @@
 const User = require("../model/client.model");
-const signUpUser = require("../auth/sign-up");
 const Producer = require("../algorithm/Producer");
 const xSecond = require("../algorithm/xSecond");
 
+const MAX_RETRIES = 5;
+
 const checkRateLimit = async (req, res) => {
-  const { name, clientKey } = req.body;
+    const { clientKey } = req.body;
 
-  const user = await User.findOne({ clientKey });
-  if (!user) {
-    return res.status(401).json({
-      message:"Unauthorized"
-    })
-  }
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
 
-  const currTime = Date.now();
-  const updateToken = await Producer(user);
-  const refillRate = user.refillRate;
+        const user = await User.findOne({ clientKey });
 
-  let newLastRefill = user.lastRefill;
+        if (!user) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
 
-if (updateToken > 0) {
-    newLastRefill = new Date(
-        user.lastRefill.getTime() + updateToken * user.refillRate
-    );
-}
-  const token = user.remainingToken;
+        const updateToken = Producer(user);
 
-  let addedToken = Math.min(token + updateToken, user.capacity);
+        let newLastRefill = user.lastRefill;
 
-  let xSec = await xSecond(newLastRefill, user);
+        if (updateToken > 0) {
+            newLastRefill = new Date(
+                user.lastRefill.getTime() +
+                updateToken * user.refillRate
+            );
+        }
 
-  if (addedToken > 0) {
-    addedToken--;
-  } else {
+        let tokens = Math.min(
+            user.remainingToken + updateToken,
+            user.capacity
+        );
 
-    res.set("X-RateLimit-Limit", user.capacity);
-    res.set("X-RateLimit-Remaining", 0);
-    res.set("X-RateLimit-Reset", xSec);
-    return res.status(429).json({ 
-      "allowed":false,
-      "retryAfter": xSec
-     });
-  }
+        const reset = xSecond(newLastRefill, user);
 
-  await User.findOneAndUpdate(
-    { clientKey },
-    { remainingToken: addedToken, lastRefill: newLastRefill },
-  );
-  res.set("X-RateLimit-Limit", user.capacity);
-  res.set("X-RateLimit-Remaining", addedToken);
-  res.set("X-RateLimit-Reset", xSec);
-  return res.json({
-    "allowed": true,
-    "remainingTokens":addedToken
-  });
+        if (tokens <= 0) {
+            res.set("X-RateLimit-Limit", user.capacity);
+            res.set("X-RateLimit-Remaining", 0);
+            res.set("X-RateLimit-Reset", reset);
+
+            return res.status(429).json({
+                allowed: false,
+                retryAfter: reset,
+            });
+        }
+
+        tokens--;
+
+        user.remainingToken = tokens;
+        user.lastRefill = newLastRefill;
+
+        try {
+
+            await user.save();
+
+            res.set("X-RateLimit-Limit", user.capacity);
+            res.set("X-RateLimit-Remaining", tokens);
+            res.set("X-RateLimit-Reset", reset);
+
+            return res.json({
+                allowed: true,
+                remainingTokens: tokens,
+            });
+
+        } catch (err) {
+
+            // Another request updated the document first
+            if (err.name === "VersionError") {
+                continue;
+            }
+
+            throw err;
+        }
+    }
+
+    return res.status(409).json({
+        message: "Too many concurrent requests. Please retry."
+    });
 };
 
 module.exports = checkRateLimit;

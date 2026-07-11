@@ -1,19 +1,24 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
-const User = new mongoose.Schema({
-    name : String,
-    clientKey : String,
-    capacity : Number,
-    remainingToken : Number,
-    refillRate: Number,
-    algorithm:{
+const UserSchema = new mongoose.Schema({
+    name: String,
+    clientKey: {
         type: String,
-        default: "token_bucket"
+        unique: true,
     },
-    lastRefill:{
+    capacity: Number,
+    remainingToken: Number,
+    refillRate: Number,
+    algorithm: {
+        type: String,
+        default: "token_bucket",
+    },
+    lastRefill: {
         type: Date,
         default: Date.now,
-    }
-})
+    },
+}, {
+    optimisticConcurrency: true
+});
 
-module.exports = mongoose.model('user',User);
+module.exports = mongoose.model("user", UserSchema);

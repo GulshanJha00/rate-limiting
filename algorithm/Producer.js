@@ -1,16 +1,11 @@
 const Producer = (user) => {
-    const refillTime = Number(user.refillRate); 
-    const currTime = Date.now();
-    const elapsed = currTime - user.lastRefill;
 
-        console.log({
-        refillTime,
-        elapsed,
-        token: Math.floor(elapsed / refillTime),
-    });
+    const refillTime = Number(user.refillRate);
 
-    const token = Math.floor(elapsed/refillTime)
-    return token
+    const elapsed =
+        Date.now() - user.lastRefill.getTime();
+
+    return Math.floor(elapsed / refillTime);
 };
 
-module.exports = Producer
+module.exports = Producer;
