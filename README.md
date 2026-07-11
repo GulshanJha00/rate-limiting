@@ -115,3 +115,18 @@ Limiter state and client configurations are stored in MongoDB, ensuring that tok
 
 The service has been validated under sustained traffic exceeding **500 concurrent requests per second**, ensuring correct request decisions and consistent limiter behavior under load.
 
+
+### Concurrency Stress Test
+
+The rate limiter was tested using `autocannon` with **100 concurrent connections** for **10 seconds**.
+
+Test configuration:
+- Capacity: 30 tokens
+- Refill Rate: 100 seconds/token (effectively disables refill during the test)
+
+Results:
+- Total Requests: ~53,000
+- Successful Requests (200): **30**
+- Rejected Requests (429): **52,483**
+
+Since only 30 requests were allowed—the exact number of available tokens—the test confirms that optimistic concurrency and the retry mechanism prevent race conditions and ensure that no extra tokens are consumed under heavy parallel load.
