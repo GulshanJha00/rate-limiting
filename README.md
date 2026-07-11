@@ -1,17 +1,17 @@
 # Token Bucket Rate Limiter Service
 
-A standalone rate limiting service built with **Node.js**, **Express.js**, and **MongoDB** that allows applications to enforce request limits using configurable algorithms. The service exposes REST APIs to validate incoming requests and responds with **ALLOW** or **DENY** decisions based on each client's configured rate-limiting policy.
+A standalone rate limiting service built with **Node.js**, **Express.js**, and **MongoDB** that allows applications to enforce request limits using the **Token Bucket** algorithm. The service exposes REST APIs to validate incoming requests and responds with **ALLOW** or **DENY** decisions based on each client's configured rate-limiting policy.
 
 ## Features
 
 * Token Bucket rate limiting algorithm
-* Sliding Window rate limiting algorithm
 * Per-client configurable limits
 * Persistent bucket state using MongoDB
 * Race-condition safe request handling
 * REST APIs for client management and request validation
 * Standard rate-limit response headers
-* Load tested for 500+ concurrent requests
+* Optimistic concurrency control for safe concurrent updates
+* Load tested under heavy concurrent traffic
 
 ## Tech Stack
 
@@ -38,19 +38,21 @@ Checks whether a request from a client should be allowed.
 }
 ```
 
-#### Response
+#### Success Response
 
 ```json
 {
-  "status": "ALLOW"
+  "allowed": true,
+  "remainingTokens": 9
 }
 ```
 
-or
+#### Rate Limited Response
 
 ```json
 {
-  "status": "DENY"
+  "allowed": false,
+  "retryAfter": 1
 }
 ```
 
@@ -69,21 +71,21 @@ Configure rate-limiting rules for a client.
 ```json
 {
   "clientKey": "client123",
-  "algorithm": "token_bucket",
-  "requestsPerSecond": 5,
-  "burstSize": 10
+  "capacity": 10,
+  "remainingToken": 10,
+  "refillRate": 1000
 }
 ```
 
-## Algorithms
+## Algorithm
 
 ### Token Bucket
 
-Each client owns a bucket with a configurable capacity. Every incoming request consumes one token. Tokens are automatically replenished over time based on the configured refill rate.
+Each client owns a bucket with a configurable capacity.
 
-### Sliding Window
-
-Tracks requests within a rolling time window to provide smoother rate limiting while preventing burst traffic from bypassing limits.
+* Every incoming request consumes one token.
+* Tokens are automatically replenished over time based on the configured refill rate.
+* If no tokens are available, the request is rejected with **HTTP 429 (Too Many Requests)**.
 
 ## Response Headers
 
@@ -93,40 +95,41 @@ Every `/check` response includes standard rate-limit headers:
 * `X-RateLimit-Remaining`
 * `X-RateLimit-Reset`
 
-##
-
 ## How It Works
 
 1. A client sends a request containing its `clientKey`.
-2. The service loads the client's configuration and current limiter state.
-3. The configured algorithm evaluates whether the request can be processed.
-4. The limiter state is updated atomically.
-5. The service returns an `ALLOW` or `DENY` decision along with rate-limit metadata.
+2. The service loads the client's configuration and current bucket state.
+3. The Token Bucket algorithm determines whether the request should be allowed.
+4. The bucket state is updated safely using optimistic concurrency.
+5. The service returns the decision along with rate-limit metadata.
 
 ## Concurrency
 
-The service safely handles multiple simultaneous requests for the same client by preventing duplicate token consumption and maintaining consistent limiter state.
+The service safely handles multiple simultaneous requests for the same client using **Mongoose Optimistic Concurrency Control**.
+
+If multiple requests attempt to update the same client's bucket simultaneously, only one update succeeds. The remaining requests automatically retry using the latest document version, preventing duplicate token consumption and ensuring consistent bucket state.
 
 ## Persistence
 
-Limiter state and client configurations are stored in MongoDB, ensuring that token counts and request history survive service restarts.
+Client configurations and bucket state are stored in MongoDB, ensuring that rate-limit state survives service restarts.
 
-## Load Testing
+## Concurrency Stress Test
 
-The service has been validated under sustained traffic exceeding **500 concurrent requests per second**, ensuring correct request decisions and consistent limiter behavior under load.
+The rate limiter was tested using **autocannon** with **100 concurrent connections** for **10 seconds**.
 
+### Test Configuration
 
-### Concurrency Stress Test
+* Capacity: **30 tokens**
+* Refill Rate: **100 seconds/token** (effectively disabled during the test)
 
-The rate limiter was tested using `autocannon` with **100 concurrent connections** for **10 seconds**.
+### Results
 
-Test configuration:
-- Capacity: 30 tokens
-- Refill Rate: 100 seconds/token (effectively disables refill during the test)
+| Metric                    |      Value |
+| ------------------------- | ---------: |
+| Total Requests            |    ~53,000 |
+| Successful Requests (200) |     **30** |
+| Rejected Requests (429)   | **52,483** |
 
-Results:
-- Total Requests: ~53,000
-- Successful Requests (200): **30**
-- Rejected Requests (429): **52,483**
+### Conclusion
 
-Since only 30 requests were allowed—the exact number of available tokens—the test confirms that optimistic concurrency and the retry mechanism prevent race conditions and ensure that no extra tokens are consumed under heavy parallel load.
+Only **30 requests** were allowed, exactly matching the available number of tokens. No additional requests were able to consume extra tokens, confirming that optimistic concurrency and the retry mechanism successfully prevent race conditions under heavy concurrent load.
